@@ -2,9 +2,7 @@ package com.xxx.mall.mbg;
 
 import org.mybatis.generator.api.IntrospectedColumn;
 import org.mybatis.generator.api.IntrospectedTable;
-import org.mybatis.generator.api.dom.java.Field;
-import org.mybatis.generator.api.dom.java.InnerClass;
-import org.mybatis.generator.api.dom.java.TopLevelClass;
+import org.mybatis.generator.api.dom.java.*;
 import org.mybatis.generator.internal.DefaultCommentGenerator;
 import org.mybatis.generator.internal.util.StringUtility;
 
@@ -17,6 +15,8 @@ import java.util.Properties;
 public class CustomCommentGenerator extends DefaultCommentGenerator {
     // 是否从数据库注释中获取字段注释
     private boolean addRemarkComments = false;
+    private static final String EXAMPLE_SUFFIX="Example";
+    private static final String API_MODEL_PROPERTY_FULL_CLASS_NAME="io.swagger.annotations.ApiModelProperty";
 
     /**
      * 设置用户配置的参数
@@ -35,8 +35,15 @@ public class CustomCommentGenerator extends DefaultCommentGenerator {
                                 IntrospectedColumn introspectedColumn) {
         String remarks = introspectedColumn.getRemarks();
         //根据参数和备注信息判断是否添加备注信息
-        if (addRemarkComments && StringUtility.stringHasValue(remarks)) {
-            addFieldJavaDoc(field, remarks);
+        if(addRemarkComments&&StringUtility.stringHasValue(remarks)){
+            // 不增加注释了，而是采用swagger注解
+//            addFieldJavaDoc(field, remarks);
+            //数据库中特殊字符需要转义
+            if(remarks.contains("\"")){
+                remarks = remarks.replace("\"","'");
+            }
+            //给model的字段添加swagger注解
+            field.addJavaDocLine("@ApiModelProperty(value = \""+remarks+"\")");
         }
     }
 
@@ -86,5 +93,14 @@ public class CustomCommentGenerator extends DefaultCommentGenerator {
         addJavadocTag(topLevelClass, true);
 
         topLevelClass.addJavaDocLine(" */"); //$NON-NLS-1$
+    }
+
+    @Override
+    public void addJavaFileComment(CompilationUnit compilationUnit) {
+        super.addJavaFileComment(compilationUnit);
+        //只在model中添加swagger注解类的导入
+        if(!compilationUnit.isJavaInterface()&&!compilationUnit.getType().getFullyQualifiedName().contains( EXAMPLE_SUFFIX)){
+            compilationUnit.addImportedType(new FullyQualifiedJavaType(API_MODEL_PROPERTY_FULL_CLASS_NAME));
+        }
     }
 }
